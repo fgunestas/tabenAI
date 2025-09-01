@@ -1,10 +1,9 @@
 # Python bytecode
 
-.venv/
-/.env
+.env
 
-.data/besiktas_reviews_serpapi_part1.csv
-.data/Restaurant_reviews.csv
+data/besiktas_reviews_serpapi_part1.csv
+data/Restaurant_reviews.csv
 
 
 chroma_store/
