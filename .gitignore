@@ -1,0 +1,12 @@
+# Python bytecode
+
+.venv/
+/.env
+
+.data/besiktas_reviews_serpapi_part1.csv
+.data/Restaurant_reviews.csv
+
+
+chroma_store/
+*.sqlite3
+
