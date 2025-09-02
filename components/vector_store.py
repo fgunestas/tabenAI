@@ -5,7 +5,6 @@ import tqdm
 import hashlib
 
 CSV_PATH=r'C:\Users\fig\PycharmProjects\tabenAI\data\besiktas_reviews_serpapi_part_full.csv'
-EMBED_MODEL = "intfloat/multilingual-e5-large"
 COLLECTION_NAME = "reviews"
 
 
@@ -41,17 +40,11 @@ def build_text(rname, review):
 df = pd.read_csv(CSV_PATH).fillna("")
 df.columns = df.columns.str.lower()
 
-print(df.columns)
 required = {"name","review"}
-if not required.issubset(df.columns):
-    raise ValueError(f"CSV en az şu kolonları içermeli: {required}")
+
 
 lat_col, lon_col = normalize_latlon(df)
-if not lat_col or not lon_col:
-    # lat/lon yoksa da devam eder; sadece geo-sorting yapamayız
-    print("UYARI: lat/lon kolonları bulunamadı; sadece semantik arama yapılır.")
-else:
-    print(f"Konum kolonları: lat={lat_col}, lon={lon_col}")
+
 
 batch = 64
 docs, metas, ids = [], [], []
