@@ -39,8 +39,8 @@ def build_text(rname, review):
 
 df = pd.read_csv(CSV_PATH).fillna("")
 df.columns = df.columns.str.lower()
+print("CSV kolonları:", list(df.columns))
 
-required = {"name","review"}
 
 
 lat_col, lon_col = normalize_latlon(df)
@@ -54,13 +54,7 @@ for _, row in tqdm.tqdm(df.iterrows(), total=len(df)):
     text = str(row["review"]).strip()
     rid = doc_id(rname, text)
 
-    meta = {
-        "name": rname,
-        "rating": str(row.get("rating","")),
-        "source": row.get("source","csv"),
-        "city": row.get("city",""),
-        "district": row.get("district",""),
-    }
+    meta = {"restaurant": rname}
     if lat_col and lon_col:
         try:
             meta["lat"] = float(row[lat_col])
@@ -78,3 +72,9 @@ for _, row in tqdm.tqdm(df.iterrows(), total=len(df)):
 
 if ids:
     collection.upsert(ids=ids, documents=docs, metadatas=metas)
+
+after = collection.count()
+print("Yükleme sonrası count:", after)
+peek = collection.peek(3)
+print("Örnek docs:", peek.get("documents"))
+print("Örnek metas:", peek.get("metadatas"))
