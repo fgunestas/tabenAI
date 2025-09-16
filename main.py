@@ -1,6 +1,7 @@
 import sys,os
 import subprocess
 from components.retriever import Retriever
+from components.rag_pipeline import rag_pipeline
 import os, chromadb
 
 
@@ -11,9 +12,7 @@ def main():
     else:
         subprocess.run(["python", "components/vector_store.py"], check=True)
 
-    res=Retriever("lahmacun", 5)
-    print(res)
-
+    rag_pipeline("asd")
 
 
 if __name__ == "__main__":
