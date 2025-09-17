@@ -1,29 +1,25 @@
 import pandas as pd
-import chromadb
-from chromadb.utils import embedding_functions
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
 import tqdm
 import hashlib
+from langchain_core.documents import Document
 
 CSV_PATH=r'C:\Users\fig\PycharmProjects\tabenAI\data\besiktas_reviews_serpapi_part_full.csv'
 COLLECTION_NAME = "reviews"
 
 
-ollama_ef = embedding_functions.OllamaEmbeddingFunction(
-    model_name="nomic-embed-text",
-)
+EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+hf_ef = HuggingFaceEmbeddings(model_name=EMBED_MODEL)
 
-client = chromadb.PersistentClient(path="./chroma_store")
-
-collection = client.get_or_create_collection(
-    name=COLLECTION_NAME,
-    embedding_function=ollama_ef,
-    metadata={"hnsw:space": "cosine"},
+db = Chroma(
+    persist_directory="./chroma_store",
+    collection_name=COLLECTION_NAME,
+    embedding_function=hf_ef
 )
 
 def doc_id(restaurant, review): #1 review 1 id for managing dublicate reviews.
-    h = hashlib.sha1()
-    h.update(f"{restaurant}|{review}".encode("utf-8"))
-    return h.hexdigest()
+    return hashlib.sha1(f"{restaurant}|{review}".encode("utf-8")).hexdigest()
 
 def normalize_latlon(df):
     cols = {c.lower(): c for c in df.columns}
@@ -52,29 +48,22 @@ docs, metas, ids = [], [], []
 for _, row in tqdm.tqdm(df.iterrows(), total=len(df)):
     rname = str(row["name"]).strip()
     text = str(row["review"]).strip()
-    rid = doc_id(rname, text)
 
     meta = {"restaurant": rname}
-    if lat_col and lon_col:
+    if "latitude" in row and "longitude" in row:
         try:
-            meta["lat"] = float(row[lat_col])
-            meta["lon"] = float(row[lon_col])
+            meta["lat"] = float(row["latitude"])
+            meta["lon"] = float(row["longitude"])
         except Exception:
             pass
 
-    ids.append(rid)
-    docs.append(build_text(rname, text))
-    metas.append(meta)
+    # LangChain Document objesi
+    docs.append(Document(page_content=f"[{rname}]: {text}", metadata=meta))
 
-    if len(ids) >= batch:
-        collection.upsert(ids=ids, documents=docs, metadatas=metas)
-        ids, docs, metas = [], [], []
+    if len(docs) >= batch:
+        db.add_documents(docs)
+        docs = []
 
-if ids:
-    collection.upsert(ids=ids, documents=docs, metadatas=metas)
+if docs:
+    db.add_documents(docs)
 
-after = collection.count()
-print("Yükleme sonrası count:", after)
-peek = collection.peek(3)
-print("Örnek docs:", peek.get("documents"))
-print("Örnek metas:", peek.get("metadatas"))

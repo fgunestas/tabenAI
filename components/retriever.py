@@ -1,17 +1,16 @@
-from langchain_community.vectorstores import Chroma
-from chromadb.utils import embedding_functions
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
 import os
 import chromadb
 
 
 
-def Retriever(query_text: str, top_k: int = 5):
+def Retriever():
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     DB_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "chroma_store")) #local db path
 
     chroma_client = chromadb.PersistentClient(path=DB_DIR)
-    EMBED_MODEL = "sentence-transformers/paragprase-multilingual-MiniLM-L12-v2"
+    EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     hf_ef = HuggingFaceEmbeddings(model_name=EMBED_MODEL)
 
     db = Chroma(
