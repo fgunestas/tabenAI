@@ -1,8 +1,6 @@
-import sys,os
 import subprocess
-from components.retriever import Retriever
 from components.rag_pipeline import rag_pipeline
-import os, chromadb
+import os
 
 
 

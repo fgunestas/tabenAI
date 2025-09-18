@@ -19,7 +19,7 @@ def Retriever():
         embedding_function=hf_ef
     )
 
-    retriever = db.as_retriever(search_kwargs={"k": 5})
+    retriever = db.as_retriever(search_kwargs={"k": 2})
 
 
     return retriever
