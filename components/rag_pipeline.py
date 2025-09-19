@@ -2,18 +2,42 @@ from langchain_huggingface import HuggingFacePipeline
 from langchain.prompts import PromptTemplate
 from langchain.chains import RetrievalQA
 from components.retriever import Retriever
-from transformers import pipeline
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, pipeline
+import torch
 
 def rag_pipeline(query):
 
-    #llm_model="mistralai/Mistral-7B-Instruct-v0.2"
-    llm_model="EleutherAI/gpt-neo-1.3B"
+    bnb_cfg = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_compute_dtype=torch.float16
+    )
+
+
+
+    llm_model="mistralai/Mistral-7B-Instruct-v0.2"
+    #llm_model="EleutherAI/gpt-neo-1.3B"
+
+    tok = AutoTokenizer.from_pretrained(llm_model, use_fast=True)
+    if tok.pad_token_id is None:
+        tok.pad_token_id = tok.eos_token_id
+
+
+    model = AutoModelForCausalLM.from_pretrained(
+        llm_model,
+        quantization_config=bnb_cfg,
+        device_map="auto",
+        torch_dtype=torch.float16
+    )
+
     generate=pipeline("text-generation",
-                      model=llm_model,
+                      model=model,
                       temperature=0.6,
+                      tokenizer=tok,
                       do_sample=True,
-                      max_new_tokens=256,
-                      device=0)
+                      max_new_tokens=128,
+                      clean_up_tokenization_spaces=True)
 
     llm=HuggingFacePipeline(pipeline=generate)
     retriever=Retriever()
