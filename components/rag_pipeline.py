@@ -4,6 +4,34 @@ from langchain.chains import RetrievalQA
 from components.retriever import Retriever
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, pipeline
 import torch
+from collections import defaultdict
+
+
+def rest_prep():
+    retriever = Retriever()
+
+    query = "Beşiktaş’ta iyi lahmacun yapan yerler hangileri?"
+    docs = retriever.get_relevant_documents(query)
+
+    grouped = {}
+    for doc in docs:
+        rname = doc.metadata.get("restaurant")
+        text = doc.page_content
+
+        if text.startswith(f"[{rname}]"):
+            text = text[len(rname) + 3:].strip()
+
+        if rname not in grouped:
+            grouped[rname] = []
+
+        grouped[rname].append(text)
+
+        structured = [
+            {"name": rname, "reviews": text}
+            for rname, text in grouped.items()
+        ]
+
+    return structured
 
 def rag_pipeline(query):
 
@@ -31,6 +59,9 @@ def rag_pipeline(query):
         torch_dtype=torch.float16
     )
 
+    rest_dict=rest_prep()
+    print(rest_dict)
+
     generate=pipeline("text-generation",
                       model=model,
                       temperature=0.6,
@@ -40,7 +71,9 @@ def rag_pipeline(query):
                       clean_up_tokenization_spaces=True)
 
     llm=HuggingFacePipeline(pipeline=generate)
-    retriever=Retriever()
+
+
+
 
     prompt_template = """
     Aşağıda kullanıcı yorumları verilmiştir. Yorumlar farklı restoranlara aittir. 
@@ -62,10 +95,6 @@ def rag_pipeline(query):
     """
     PROMPT=PromptTemplate(template=prompt_template, input_variables=["context", "question"])
 
-    qa=RetrievalQA.from_chain_type(llm=llm,
-                                   retriever=retriever,
-                                   chain_type="stuff",
-                                   chain_type_kwargs={"prompt": PROMPT})
-    query = "Beşiktaş’ta iyi lahmacun yapan yerler hangileri?"
-    result = qa.invoke(query)
-    print(result)
+
+
+
