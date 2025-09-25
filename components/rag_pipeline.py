@@ -1,10 +1,14 @@
 from langchain_huggingface import HuggingFacePipeline
-from langchain.prompts import PromptTemplate
-from langchain.chains import RetrievalQA
+
 from components.retriever import Retriever
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, pipeline
 import torch
-from collections import defaultdict
+
+
+from langchain.chains import LLMChain
+from langchain.prompts import PromptTemplate
+from langchain.docstore.document import Document
+from langchain.chains.summarize import load_summarize_chain
 
 
 def rest_prep():
@@ -59,8 +63,7 @@ def rag_pipeline(query):
         torch_dtype=torch.float16
     )
 
-    rest_dict=rest_prep()
-    print(rest_dict)
+
 
     generate=pipeline("text-generation",
                       model=model,
@@ -71,29 +74,70 @@ def rag_pipeline(query):
                       clean_up_tokenization_spaces=True)
 
     llm=HuggingFacePipeline(pipeline=generate)
+    reduce_prompt = PromptTemplate(
+        input_variables=["text", "question"],
+        template="""
+    Aşağıda farklı restoranların özetleri var.
+    Bunları kullanarak soruya uygun genel bir cevap üret.
 
+    --- Restoran Özetleri ---
+    {text}
 
-
-
-    prompt_template = """
-    Aşağıda kullanıcı yorumları verilmiştir. Yorumlar farklı restoranlara aittir. 
-    Her restoran için özet çıkarırken şu kurallara uy:
-    
-    1. Restoranı adıyla belirt.
-    2. Soruda geçen konuya (örneğin 'lahmacun') dair yorumlar varsa onları özetle.
-    3. Eğer sorulan konu hakkında yorum yoksa, "Bu bölgede bu tarz yorum bulunmuyor." de.
-    4. Genel restoran hakkında da 1-2 cümlelik özet yap (ör: lezzet, fiyat/performans, servis).
-    5. Kısa, net ve anlaşılır Türkçe cevap ver. Liste formatında sun.
-    
-    --- Kullanıcı Yorumları ---
-    {context}
-    
     --- Soru ---
     {question}
-    
-    --- Cevap ---
+
+    --- Genel Cevap ---
     """
-    PROMPT=PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+    )
+    map_prompt = PromptTemplate(
+        input_variables=["text", "question"],
+        template="""
+        Aşağıda tek bir restorana ait kullanıcı yorumları verilmiştir.
+        Bu yorumları inceleyerek soruya uygun kısa bir özet çıkar.
+
+        Kurallar:
+        1. Restoranın adını başta belirt.
+        2. Soruda geçen konuya (örneğin 'lahmacun') dair yorumlar varsa, sadece bu konudaki görüşleri özetle.
+        3. Eğer sorulan konu hakkında yorum yoksa, "Bu restoran için bu konuda yorum bulunmuyor." de.
+        4. Restoranın genel durumu (lezzet, fiyat/performans, servis) hakkında da 1-2 cümlelik genel özet yap.
+        5. Kısa, net ve anlaşılır Türkçe cevap ver.
+
+        --- Restoran ---
+        
+
+        --- Yorumlar ---
+        {text}
+
+        --- Soru ---
+        {question}
+
+        --- Cevap ---
+        """
+    )
+
+    map_reduce_chain = load_summarize_chain(
+        llm=llm,
+        chain_type="map_reduce",
+        map_prompt=map_prompt,
+        combine_prompt=reduce_prompt
+    )
+    resto_dict = rest_prep()
+
+    docs = [
+        Document(page_content="\n".join(rest["reviews"]))
+        for rest in resto_dict
+    ]
+
+    query = "Beşiktaş’ta iyi lahmacun yapan yerler hangileri?"
+    result = map_reduce_chain.invoke({"input_documents": docs, "question": query})
+    print(result)
+
+
+
+
+
+
+
 
 
 
