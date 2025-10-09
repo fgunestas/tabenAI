@@ -1,5 +1,5 @@
 import subprocess
-from components.rag_pipeline import rag_pipeline
+from components.rag_pipeline import rag_pipeline, rest_prep
 import os
 
 
@@ -10,7 +10,7 @@ def main():
     else:
         subprocess.run(["python", "components/vector_store.py"], check=True)
 
-    rag_pipeline("asd")
+    rag_pipeline("Beşiktaş’ta iyi lahmacun yapan yerler hangileri?")
 
 
 if __name__ == "__main__":
