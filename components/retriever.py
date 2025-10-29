@@ -1,25 +1,11 @@
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
-import os
-import chromadb
-
-
-
-def Retriever():
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    DB_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "chroma_store")) #local db path
-
-    chroma_client = chromadb.PersistentClient(path=DB_DIR)
-    EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-    hf_ef = HuggingFaceEmbeddings(model_name=EMBED_MODEL)
-
-    db = Chroma(
-        client=chroma_client,
-        collection_name="reviews",  # current collection name
-        embedding_function=hf_ef
+def Retriever(db):
+    retriever = db.as_retriever(
+        search_type="mmr",
+        search_kwargs={
+            'k': 15,      # Nihai olarak 10 belge istiyoruz
+            'fetch_k': 40 # MMR'ın aralarından seçim yapması için 50 aday belge getir
+        }
     )
-
-    retriever = db.as_retriever(search_kwargs={"k": 40})
 
 
     return retriever

@@ -7,16 +7,10 @@ from langchain_core.documents import Document
 
 CSV_PATH=r'C:\Users\fig\PycharmProjects\tabenAI\data\besiktas_reviews_serpapi_part_full.csv'
 COLLECTION_NAME = "reviews"
-
-
 EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-hf_ef = HuggingFaceEmbeddings(model_name=EMBED_MODEL)
+DB_PERSIST_DIRECTORY = "./chroma_store"
 
-db = Chroma(
-    persist_directory="./chroma_store",
-    collection_name=COLLECTION_NAME,
-    embedding_function=hf_ef
-)
+
 
 def doc_id(restaurant, review): #1 review 1 id for managing dublicate reviews.
     return hashlib.sha1(f"{restaurant}|{review}".encode("utf-8")).hexdigest()
@@ -32,38 +26,55 @@ def normalize_latlon(df):
 
 def build_text(rname, review):
     return f"[{rname}]: {review}"
+def db_def():
+    hf_ef = HuggingFaceEmbeddings(model_name=EMBED_MODEL)
 
-df = pd.read_csv(CSV_PATH).fillna("")
-df.columns = df.columns.str.lower()
-print("CSV kolonları:", list(df.columns))
+    db = Chroma(
+        persist_directory=DB_PERSIST_DIRECTORY,
+        collection_name=COLLECTION_NAME,
+        embedding_function=hf_ef
+    )
+    return db
+
+
+def main():
+
+    db=db_def()
+
+    df = pd.read_csv(CSV_PATH).fillna("")
+    df.columns = df.columns.str.lower()
 
 
 
-lat_col, lon_col = normalize_latlon(df)
+    lat_col, lon_col = normalize_latlon(df)
 
 
-batch = 64
-docs, metas, ids = [], [], []
+    batch = 64
+    docs, metas, ids = [], [], []
 
-for _, row in tqdm.tqdm(df.iterrows(), total=len(df)):
-    rname = str(row["name"]).strip()
-    text = str(row["review"]).strip()
+    for _, row in tqdm.tqdm(df.iterrows(), total=len(df)):
+        rname = str(row["name"]).strip()
+        text = str(row["review"]).strip()
 
-    meta = {"restaurant": rname}
-    if "latitude" in row and "longitude" in row:
-        try:
-            meta["lat"] = float(row["latitude"])
-            meta["lon"] = float(row["longitude"])
-        except Exception:
-            pass
+        meta = {"restaurant": rname}
+        if "latitude" in row and "longitude" in row:
+            try:
+                meta["lat"] = float(row["latitude"])
+                meta["lon"] = float(row["longitude"])
+            except Exception:
+                pass
 
-    # LangChain Document objesi
-    docs.append(Document(page_content=f"[{rname}]: {text}", metadata=meta))
+        # LangChain Document objesi
+        docs.append(Document(page_content=f"[{rname}]: {text}", metadata=meta))
 
-    if len(docs) >= batch:
+        if len(docs) >= batch:
+            db.add_documents(docs)
+            docs = []
+
+    if docs:
         db.add_documents(docs)
-        docs = []
+    return db
 
-if docs:
-    db.add_documents(docs)
+if __name__=="__main__":
+    main()
 
