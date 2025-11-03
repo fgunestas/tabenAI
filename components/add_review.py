@@ -66,6 +66,8 @@ def add_new_review(db_store,restaurant_name: str, review_text: str, location: st
                 ids=[doc_id]  # <-- Anahtar burası: Hangi belgenin güncelleneceğini söyler
             )
             print(f"Başarılı: '{restaurant_name}' için yeni yorum eklendi.")
+            return True
 
     except Exception as e:
         print(f"HATA: Yorum eklenirken bir sorun oluştu: {e}")
+        return False

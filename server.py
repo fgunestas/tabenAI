@@ -26,8 +26,8 @@ class NewReviewModel(BaseModel):
     """Yeni bir yorum eklemek için gereken model."""
     restaurant_name: str = Field(..., description="Restoranın tam adı")
     review_text: str = Field(..., description="Kullanıcının yorum metni")
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
+    location: Optional[str] = None
+
 
 
 class QueryModel(BaseModel):
@@ -85,8 +85,7 @@ async def api_add_new_review(review: NewReviewModel):
         success = add_new_review(db_connection,
             restaurant_name=review.restaurant_name,
             review_text=review.review_text,
-            latitude=review.latitude,
-            longitude=review.longitude
+            location=review.location
         )
         if success:
             return {"status": "success", "message": "Yorum başarıyla eklendi."}
