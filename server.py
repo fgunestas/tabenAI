@@ -1,11 +1,10 @@
-import uvicorn  # API sunucumuzu çalıştırmak için
+import uvicorn
 from fastapi import FastAPI
-from pydantic import BaseModel, Field  # Gelen verileri doğrulamak için
+from pydantic import BaseModel, Field
 from typing import Optional
 import os
 
 # --- 1. Kendi Modüllerimizi Import Ediyoruz ---
-#    'vector_store.py' dosyamızdan gerekli fonksiyonları alıyoruz
 from components.add_review import add_new_review
 from components.vector_store import (main as build_database, db_def,DB_PERSIST_DIRECTORY)
 # RAG pipeline'ımızı alıyoruz
@@ -20,19 +19,18 @@ app = FastAPI(
 
 
 # --- 3. API Veri Modellerini Tanımlama (Pydantic) ---
-# Bu, FastAPI'ye hangi verinin geleceğini söyler ve otomatik doğrular.
 
 class NewReviewModel(BaseModel):
     """Yeni bir yorum eklemek için gereken model."""
-    restaurant_name: str = Field(..., description="Restoranın tam adı")
-    review_text: str = Field(..., description="Kullanıcının yorum metni")
-    location: Optional[str] = None
+    restaurant_name: str = Field(..., description="Restoranın tam adı", example="Fıccın Restoran")
+    review_text: str = Field(..., description="Kullanıcının yorum metni",example="Çerkez tavuğu harikaydı, porsiyonlar çok büyüktü.")
+    location: Optional[str] = Field(None,example='41.032,28.979')
 
 
 
 class QueryModel(BaseModel):
     """Sorgu yapmak için gereken model."""
-    query: str = Field(..., description="Kullanıcının RAG sistemine sorusu")
+    query: str = Field(..., description="Kullanıcının RAG sistemine sorusu",example="Beyoğlunda tavuk yiyebileceğim yerler.")
 
 
 # --- 4. Sunucu Başlangıç Olayı (Startup Event) ---
@@ -42,7 +40,6 @@ def on_startup():
     global db_connection
     print("API sunucusu başlıyor...")
 
-    # Adım 1: main.py'deki veritabanı kontrolünü yap
     db_file_path = os.path.join(DB_PERSIST_DIRECTORY, "chroma.sqlite3")
     if not os.path.exists(db_file_path):
         print("Veritabanı bulunamadı. CSV'den sıfırdan oluşturuluyor...")
@@ -52,8 +49,7 @@ def on_startup():
         db_connection = db_def()
         print("Veritabanı zaten mevcut (db already exist).")
 
-    # Adım 2: Modelleri "Isındırma" (Warm-up)
-    # İlk kullanıcının 1 dakika beklemesini önlemek için,
+    # Adım 2: Modelleri "Isındırma"
     # Llama-3 ve Embedding modellerini sunucu başlarken belleğe yüklüyoruz.
     print("Modeller belleğe yükleniyor (ısındırma)...")
     try:
@@ -74,7 +70,7 @@ def read_root():
     }
 
 
-@app.post("/add_review/")
+@app.post("/add_review/", tags=["Yorum Yönetimi"])
 async def api_add_new_review(review: NewReviewModel):
     """
     Veritabanına yeni bir kullanıcı yorumu ekler.
@@ -95,7 +91,7 @@ async def api_add_new_review(review: NewReviewModel):
         return {"status": "error", "message": f"Bir hata oluştu: {str(e)}"}
 
 
-@app.post("/query/")
+@app.post("/query/", tags=["RAG Sorgulama"],summary="RAG Pipeline'ını Çalıştır")
 async def api_run_rag_query(request: QueryModel):
     """
     RAG sistemine bir sorgu gönderir ve yanıt alır.
@@ -111,7 +107,5 @@ async def api_run_rag_query(request: QueryModel):
 
 # --- 6. Sunucuyu Çalıştırma ---
 if __name__ == "__main__":
-    # Bu script'i 'python server.py' olarak çalıştırdığınızda,
     # uvicorn sunucuyu 127.0.0.1 (localhost) adresinde 8000 portunda başlatır.
-    uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=True)
-    # reload=True: Kodu her kaydettiğinizde sunucuyu otomatik yeniden başlatır.
+    uvicorn.run("server:app", host="127.0.0.1", port=8000)
