@@ -1,14 +1,18 @@
 import torch
 from typing import List
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, pipeline
-
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_huggingface import HuggingFacePipeline
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from langchain_core.documents import Document
 from langchain.chains import LLMChain
 from langchain.chains import MapReduceDocumentsChain, ReduceDocumentsChain
 from langchain.chains.combine_documents.stuff import StuffDocumentsChain
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
+GOOGLE_API_KEY = os.environ["GOOGLE_API_KEY"]
 
 from components.retriever import Retriever
 
@@ -51,96 +55,53 @@ _cached_map_reduce_chain = None
 # --- 3. AĞIR MODELLERİ YÜKLEYEN FONKSİYON ---
 def _initialize_pipeline():
     """
-    Tüm RAG pipeline'ını (Modeller + Zincir) SADECE BİR KEZ yükler.
+    Gemini modelini ve zinciri hazırlar. (VRAM kullanmaz, çok hızlıdır)
     """
     global _cached_map_reduce_chain
 
-    # Eğer zaten yüklüyse, tekrar yükleme
     if _cached_map_reduce_chain is not None:
-        print("RAG Pipeline zaten yüklü, önbellekten kullanılıyor.")
         return
 
-    print("RAG Pipeline (Llama-3) İLK KEZ yükleniyor...")
-    print("Bu işlem GPU VRAM durumuna göre birkaç dakika sürebilir.")
+    print("Gemini API bağlantısı kuruluyor...")
 
-
-    bnb_cfg = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_compute_dtype=torch.float16
-    )
-
-    llm_model = "meta-llama/Meta-Llama-3-8B-Instruct"
-
-    tok = AutoTokenizer.from_pretrained(llm_model, use_fast=True)
-    if tok.pad_token_id is None:
-        tok.pad_token_id = tok.eos_token_id
-
-    model = AutoModelForCausalLM.from_pretrained(
-        llm_model,
-        quantization_config=bnb_cfg,
-        device_map="auto",
-        torch_dtype=torch.float16,
-
-    )
-
-
-    print("MAP (kısa) pipeline'ı oluşturuluyor...")
-    generate_map = pipeline(
-        "text-generation",
-        model=model,
-        tokenizer=tok,
+    # --- GEMINI MODELİ ---
+    # Map ve Reduce için aynı modeli kullanabiliriz, maliyet/hız sorunu yok.
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash",  # Hızlı ve ücretsiz tier için ideal
+        google_api_key=GOOGLE_API_KEY,
         temperature=0.1,
-        do_sample=True,
-        max_new_tokens=80,
-        clean_up_tokenization_spaces=True,
-        return_full_text=False
+        convert_system_message_to_human=True
     )
-    llm_map = HuggingFacePipeline(pipeline=generate_map)
 
-    print("REDUCE (uzun) pipeline'ı oluşturuluyor...")
-    generate_reduce = pipeline(
-        "text-generation",
-        model=model,
-        tokenizer=tok,
-        temperature=0.2,
-        do_sample=True,
-        max_new_tokens=1024,
-        clean_up_tokenization_spaces=True,
-        return_full_text=False
-    )
-    llm_reduce = HuggingFacePipeline(pipeline=generate_reduce)
+    print("MapReduce Zinciri oluşturuluyor...")
 
+    # 1. Map Zinciri
+    map_chain = LLMChain(llm=llm, prompt=map_prompt)
 
-    print("MapReduce Zinciri (MANUEL) oluşturuluyor...")
-
-    # 1. Map Zinciri (llm_map'i kullanır)
-    map_chain = LLMChain(llm=llm_map, prompt=map_prompt)
-
-    # 2. Reduce Zinciri (llm_reduce'u kullanır)
-    reduce_llm_chain = LLMChain(llm=llm_reduce, prompt=reduce_prompt)
+    # 2. Reduce Zinciri
+    reduce_llm_chain = LLMChain(llm=llm, prompt=reduce_prompt)
 
     combine_documents_chain = StuffDocumentsChain(
         llm_chain=reduce_llm_chain,
-        document_variable_name="text"  # reduce_prompt'taki {text}
+        document_variable_name="text"
     )
 
     reduce_documents_chain = ReduceDocumentsChain(
         combine_documents_chain=combine_documents_chain,
         collapse_documents_chain=combine_documents_chain,
-        token_max=8192  # Llama-3'ün gerçek limiti
+        token_max=30000  # Gemini'nin context window'u çok geniştir (1M token), sınır sorunu yok.
     )
 
-    # 3. Ana Zinciri oluştur ve global önbelleğe kaydet
+    # 3. Ana Zincir
     _cached_map_reduce_chain = MapReduceDocumentsChain(
         llm_chain=map_chain,
         reduce_documents_chain=reduce_documents_chain,
-        document_variable_name="text",  # map_prompt'taki {text}
+        document_variable_name="text",
         verbose=True
     )
 
-    print("RAG Pipeline (Llama-3) başarıyla yüklendi ve önbelleğe alındı.")
+    print("Gemini RAG Pipeline başarıyla hazırlandı.")
+
 
 
 # --- 4. VERİ HAZIRLAMA FONKSİYONU ---
