@@ -18,11 +18,11 @@ It answers user questions and allows new reviews to be added to the database ins
 
 📖 **Automatic API Interface**: Can be interactively tested and used via the Swagger UI provided by FastAPI at `http://127.0.0.1:8000/docs`.
 
-🎯 Purpose
+## 🎯 Purpose
 
-To create an end-to-end API service that can generate intelligent answers from a dynamically growing dataset, such as user reviews, using a powerful local language model (Llama 3). This project aims to solve real-world challenges like VRAM management (CPU offloading), model caching, and persistent data storage.
+To create an intelligent restaurant recommendation platform that goes beyond basic filters by leveraging **RAG (Retrieval-Augmented Generation)** technology to understand complex user cravings—such as *"quiet spots with large portions"*—directly from review texts. By hybridizing **local SOTA embeddings (BAAI/bge-m3)** for precise, privacy-focused data retrieval and **Cloud LLMs (Gemini Flash)** for high-speed reasoning, this system delivers highly personalized dining advice, effectively combining the control of on-premise search with the rapid intelligence of modern cloud AI.
 
-🚧 Setup and Running
+## 🚧 Setup and Running
 
 ### 1️⃣ Requirements
 
