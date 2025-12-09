@@ -65,9 +65,9 @@ def _initialize_pipeline():
     print("Gemini API bağlantısı kuruluyor...")
 
     # --- GEMINI MODELİ ---
-    # Map ve Reduce için aynı modeli kullanabiliriz, maliyet/hız sorunu yok.
+
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",  # Hızlı ve ücretsiz tier için ideal
+        model="gemini-2.5-flash",
         google_api_key=GOOGLE_API_KEY,
         temperature=0.1,
         convert_system_message_to_human=True

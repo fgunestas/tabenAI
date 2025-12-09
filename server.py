@@ -43,7 +43,7 @@ def on_startup():
     db_file_path = os.path.join(DB_PERSIST_DIRECTORY, "chroma.sqlite3")
     if not os.path.exists(db_file_path):
         print("Veritabanı bulunamadı. CSV'den sıfırdan oluşturuluyor...")
-        build_database()
+        db_connection=build_database()
         print("Veritabanı oluşturuldu.")
     else:
         db_connection = db_def()

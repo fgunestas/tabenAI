@@ -1,0 +1,26 @@
+services:
+  api:
+    build: .
+    environment:
+      - ANONYMIZED_TELEMETRY=False
+      - NVIDIA_VISIBLE_DEVICES=all
+    container_name: restoran-app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - ./chroma_store:/app/chroma_store
+      - /app/__pycache__
+
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    command: uvicorn server:app --host 0.0.0.0 --port 8000 --reload
