@@ -36,7 +36,11 @@ def normalize_latlon(df):
     return lat_col, lon_col
 
 def build_text(rname, review):
-    return f"[{rname}]: {review}"
+    """
+    Yorum metninin başına restoran adını ekler.
+    Örnek: "[Restoran adı: Baba Döner] Yemekler soğuktu."
+    """
+    return f"[Restoran adı: {rname}] {review}"
 
 def db_def():
 
@@ -86,8 +90,9 @@ def main():
             except Exception:
                 pass
 
-        # LangChain Document objesi
-        docs.append(Document(page_content=f"[{rname}]: {text}", metadata=meta))
+        # LangChain Document objesi - Restoran adı prefix olarak ekleniyor
+        page_content = build_text(rname, text)
+        docs.append(Document(page_content=page_content, metadata=meta))
         ids.append(unique_id)
 
         if len(docs) >= batch:

@@ -25,8 +25,8 @@ def add_new_review(db_store,restaurant_name: str, review_text: str, location: st
         if not existing_doc or not existing_doc.get('ids'):
             print(f"'{restaurant_name}' bulunamadı. Yeni bir belge oluşturuluyor.")
 
-            # 1. Yeni belgenin içeriğini formatla
-            page_content = f"Restoran Adı: {restaurant_name}\n\nYorumlar:\n: {review_text}"
+            # 1. Yeni belgenin içeriğini formatla - Restoran adı prefix olarak ekleniyor
+            page_content = f"[Restoran adı: {restaurant_name}] {review_text}"
 
             # 2. Metadata'yı oluştur
             metadata = {"restaurant_name": restaurant_name}
@@ -50,8 +50,8 @@ def add_new_review(db_store,restaurant_name: str, review_text: str, location: st
             old_page_content = existing_doc['documents'][0]
             old_metadata = existing_doc['metadatas'][0]
 
-            # 2. Yeni yorumu eski içeriğin SONUNA EKLE
-            new_review_line = f"\n: {review_text}"
+            # 2. Yeni yorumu aynı formatta ekle - Restoran adı prefix olarak ekleniyor
+            new_review_line = f"\n[Restoran adı: {restaurant_name}] {review_text}"
             new_page_content = old_page_content + new_review_line
 
             # 3. Güncellenmiş LangChain Belge nesnesini oluştur
